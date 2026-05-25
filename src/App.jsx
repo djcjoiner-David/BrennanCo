@@ -5,7 +5,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 // ╠══════════════════════════════════════════════════════════════╣
 
 const CLIENT_NAME        = "Brennan & Co";
-const CLIENT_TAGLINE     = "Your tagline here";
+const CLIENT_TAGLINE     = "";
 const CLIENT_LOGO        = "/logo.jpg";
 const PAGE_TITLE         = "Production Schedule";
 // Brand colours

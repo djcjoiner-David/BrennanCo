@@ -4,20 +4,19 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 // ║           CLIENT CONFIGURATION — EDIT THIS SECTION           ║
 // ╠══════════════════════════════════════════════════════════════╣
 
-const CLIENT_NAME        = "";           // Company name in header
-const CLIENT_TAGLINE     = ""; // Tagline under name
-const CLIENT_LOGO        = "/logo.jpg";             // Logo file in /public folder
-const PAGE_TITLE         = "Production Schedule";   // Browser tab title
-
+const CLIENT_NAME        = "Brennan & Co";
+const CLIENT_TAGLINE     = "Your tagline here";
+const CLIENT_LOGO        = "/logo.jpg";
+const PAGE_TITLE         = "Production Schedule";
 // Brand colours
-const BRAND_HEADER_BG    = "#3D2E14";   // Header background
-const BRAND_NAME_COLOR   = "#E8A030";   // Company name text colour
-const BRAND_GOLD         = "#E8A030";   // Accent / tagline colour
-const BRAND_CREAM        = "#FFF8EC";   // Light text colour
+const BRAND_HEADER_BG    = "#3D2E14";
+const BRAND_NAME_COLOR   = "#E8A030";
+const BRAND_GOLD         = "#E8A030";
+const BRAND_CREAM        = "#FFF8EC";
 
 // Supabase credentials (get these from supabase.com → Project Settings → API)
-const SUPABASE_URL = "https://oixsdxhndezbymllkpqk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_AgjgZclgWWtRM8VGLn1How_2NQjjeeP";
+const SUPABASE_URL = "https://mhnvnlinaepvszdulltq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_4rp1WAYTbs2G5d4uq-NRkQ_c4GRWf-2";
 
 // ╚══════════════════════════════════════════════════════════════╝
 

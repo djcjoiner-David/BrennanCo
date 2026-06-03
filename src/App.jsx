@@ -4,16 +4,14 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 // ║           CLIENT CONFIGURATION — EDIT THIS SECTION           ║
 // ╠══════════════════════════════════════════════════════════════╣
 
-const CLIENT_NAME        = "Brennan & Co";
-const CLIENT_TAGLINE     = "";
-const CLIENT_LOGO        = "/logo.jpg";
-const PAGE_TITLE         = "Production Schedule";
-// Brand colours
-const BRAND_HEADER_BG    = "#3D2E14";
-const BRAND_NAME_COLOR   = "#E8A030";
-const BRAND_GOLD         = "#E8A030";
-const BRAND_CREAM        = "#FFF8EC";
+const CLIENT_NAME     = "Brennan & Co";
+const CLIENT_TAGLINE  = "";
+const CLIENT_LOGO     = "/logo.jpg";
+const PAGE_TITLE      = "Production Schedule";
 
+const BRAND_HEADER_BG = "#000000";
+const BRAND_GOLD      = "#ffffff";
+const BRAND_CREAM     = "#FFF8EC";
 
 const SUPABASE_URL    = "https://mhnvnlinaepvszdulltq.supabase.co";
 const SUPABASE_KEY    = "sb_publishable_4rp1WAYTbs2G5d4uq-NRkQ_c4GRWf-2";
@@ -49,6 +47,7 @@ function mondayOf(d) { const day=d.getDay(); return addDays(d,day===0?-6:1-day);
 function formatDate(d) { return d.toLocaleDateString("en-AU",{day:"numeric",month:"short"}); }
 function formatDateLong(d) { return d.toLocaleDateString("en-AU",{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
 function isWeekend(d) { return d.getDay()===0||d.getDay()===6; }
+function isSaturday(d) { return d.getDay()===6; }
 function isPast(dateStr) { return dateStr < todayStr; }
 function oneMonthAgo() { const d=new Date(TODAY); d.setMonth(d.getMonth()-1); return isoDate(d); }
 
@@ -79,6 +78,16 @@ const JOB_COLOUR_PRESETS = [
   {bgColor:"#FFF7ED",borderColor:"#F97316",textColor:"#C2410C"},
   {bgColor:"#F0FDF4",borderColor:"#10B981",textColor:"#065F46"},
   {bgColor:"#FEF9C3",borderColor:"#EAB308",textColor:"#854D0E"},
+];
+
+
+const JOINERY_ITEM_PRESETS = [
+  "Kitchen W","Kitchen S","Pantry W","Pantry S",
+  "Butlers W","Butlers S","Laundry W","Laundry S",
+  "Vanity W","Vanity S","Robe W","Robe S",
+  "WIR W","WIR S","Mudroom W","Mudroom S",
+  "Living W","Living S","Office W","Office S",
+  "Delivery",
 ];
 
 // ── UI Primitives ─────────────────────────────────────────────
@@ -148,39 +157,61 @@ function Spinner({text="Loading..."}) {
 
 // ── Job Block ─────────────────────────────────────────────────
 
-function JobBlock({job,subItem,hours,productiveHours,entry,onClick,onDragStart,onDragEnd,conflict,canEdit}) {
+function JobBlock({job,subItem,hours,entry,onClick,onDragStart,onDragEnd,conflict,canEdit,onCopy,copyMode}) {
+  const [hovered,setHovered]=useState(false);
   return (
-    <div draggable={canEdit} onDragStart={canEdit?e=>onDragStart(e,entry):undefined} onDragEnd={canEdit?onDragEnd:undefined} onClick={canEdit?onClick:undefined}
-      style={{background:conflict?"#FEF2F2":job.bgColor,border:conflict?"2px solid #EF4444":`1.5px solid ${job.borderColor}`,borderRadius:6,padding:"3px 6px",cursor:canEdit?"grab":"default",minHeight:44,display:"flex",flexDirection:"column",justifyContent:"center",overflow:"hidden",userSelect:"none",position:"relative"}}>
+    <div
+      draggable={canEdit&&!copyMode}
+      onDragStart={canEdit&&!copyMode?e=>onDragStart(e,entry):undefined}
+      onDragEnd={canEdit?onDragEnd:undefined}
+      onClick={canEdit?onClick:undefined}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+      style={{background:conflict?"#FEF2F2":job.bgColor,border:conflict?"2px solid #EF4444":`1.5px solid ${job.borderColor}`,borderRadius:5,padding:"2px 5px",cursor:canEdit?"pointer":"default",minHeight:34,display:"flex",flexDirection:"column",justifyContent:"center",overflow:"hidden",userSelect:"none",position:"relative"}}>
       {conflict&&<div style={{position:"absolute",top:2,right:4,fontSize:10,color:"#EF4444",fontWeight:700}}>⚠ CONFLICT</div>}
-      <div style={{fontSize:11,fontWeight:700,color:conflict?"#EF4444":job.textColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{job.jobNo} · {job.name}</div>
-      <div style={{fontSize:11,fontWeight:400,color:conflict?"#EF4444":job.textColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{subItem?subItem.name:"General"}</div>
-      <div style={{fontSize:10,color:conflict?"#EF4444":job.textColor,opacity:0.7}}>{hours}h</div>
+      {canEdit&&hovered&&!conflict&&(
+        <div onClick={e=>{e.stopPropagation();onCopy(entry);}}
+          style={{position:"absolute",top:0,right:0,bottom:0,width:20,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:"rgba(0,0,0,0.12)",borderLeft:"1px solid rgba(0,0,0,0.1)",borderRadius:"0 5px 5px 0",fontSize:10,color:"#fff",fontWeight:700,userSelect:"none"}}>
+          ⧉
+        </div>
+      )}
+      <div style={{fontSize:10,fontWeight:700,color:conflict?"#EF4444":job.textColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.3,paddingRight:hovered&&canEdit?18:0}}>{job.jobNo} · {job.name}</div>
+      <div style={{fontSize:10,fontWeight:400,color:conflict?"#EF4444":job.textColor,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.3}}>{subItem?subItem.name:"General"} · {hours}h</div>
     </div>
   );
 }
 
-// ── Misc Block ────────────────────────────────────────────────
-
-function MiscBlock({note,hours,entry,onClick,onDragStart,onDragEnd,conflict,canEdit}) {
+function MiscBlock({note,hours,entry,onClick,onDragStart,onDragEnd,conflict,canEdit,onCopy,copyMode}) {
+  const [hovered,setHovered]=useState(false);
   return (
-    <div draggable={canEdit} onDragStart={canEdit?e=>onDragStart(e,entry):undefined} onDragEnd={canEdit?onDragEnd:undefined} onClick={canEdit?onClick:undefined}
-      style={{background:conflict?"#FEF2F2":"#F1F5F9",border:conflict?"2px solid #EF4444":"1.5px solid #94A3B8",borderRadius:6,padding:"3px 6px",cursor:canEdit?"grab":"default",minHeight:44,display:"flex",flexDirection:"column",justifyContent:"center",overflow:"hidden",userSelect:"none",position:"relative"}}>
+    <div
+      draggable={canEdit&&!copyMode}
+      onDragStart={canEdit&&!copyMode?e=>onDragStart(e,entry):undefined}
+      onDragEnd={canEdit?onDragEnd:undefined}
+      onClick={canEdit?onClick:undefined}
+      onMouseEnter={()=>setHovered(true)}
+      onMouseLeave={()=>setHovered(false)}
+      style={{background:conflict?"#FEF2F2":"#F1F5F9",border:conflict?"2px solid #EF4444":"1.5px solid #94A3B8",borderRadius:5,padding:"2px 5px",cursor:canEdit?"pointer":"default",minHeight:34,display:"flex",flexDirection:"column",justifyContent:"center",overflow:"hidden",userSelect:"none",position:"relative"}}>
       {conflict&&<div style={{position:"absolute",top:2,right:4,fontSize:10,color:"#EF4444",fontWeight:700}}>⚠ CONFLICT</div>}
-      <div style={{fontSize:11,fontWeight:700,color:conflict?"#EF4444":"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>📌 {note}</div>
-      <div style={{fontSize:10,color:conflict?"#EF4444":"#64748B",opacity:0.8}}>{hours}h</div>
+      {canEdit&&hovered&&!conflict&&(
+        <div onClick={e=>{e.stopPropagation();onCopy(entry);}}
+          style={{position:"absolute",top:0,right:0,bottom:0,width:20,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:"rgba(0,0,0,0.12)",borderLeft:"1px solid rgba(0,0,0,0.1)",borderRadius:"0 5px 5px 0",fontSize:10,color:"#fff",fontWeight:700,userSelect:"none"}}>
+          ⧉
+        </div>
+      )}
+      <div style={{fontSize:10,fontWeight:700,color:conflict?"#EF4444":"#475569",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.3}}>{note} · {hours}h</div>
     </div>
   );
 }
 
-function EmptySlot({onClick,isDropTarget,isPastDate,canEdit}) {
-  if (isPastDate||!canEdit) return <div style={{minHeight:44,background:"#F8FAFC",borderRadius:6,border:"1px solid #F1F5F9"}}/>;
+function EmptySlot({onClick,isDropTarget,isPastDate,canEdit,copyMode}) {
+  if (isPastDate||!canEdit) return <div style={{minHeight:34,background:"#F8FAFC",borderRadius:5,border:"1px solid #F1F5F9"}}/>;
   return (
     <div onClick={onClick}
-      style={{border:isDropTarget?"2px dashed #3B82F6":"1.5px dashed #CBD5E1",borderRadius:6,minHeight:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:isDropTarget?"#3B82F6":"#CBD5E1",fontSize:16,background:isDropTarget?"rgba(59,130,246,0.06)":"transparent",transition:"all 0.12s"}}
-      onMouseEnter={e=>{if(!isDropTarget){e.currentTarget.style.borderColor="#94A3B8";e.currentTarget.style.color="#94A3B8";}}}
-      onMouseLeave={e=>{if(!isDropTarget){e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.color="#CBD5E1";}}}>
-      {isDropTarget?"↓":"+"}
+      style={{border:isDropTarget?"2px dashed #3B82F6":copyMode?"1.5px dashed #3B82F6":"1.5px dashed #CBD5E1",borderRadius:5,minHeight:34,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:isDropTarget||copyMode?"#3B82F6":"#CBD5E1",fontSize:copyMode?11:16,fontWeight:copyMode?600:400,background:copyMode?"rgba(59,130,246,0.06)":"transparent",transition:"all 0.12s"}}
+      onMouseEnter={e=>{if(!isDropTarget&&!copyMode){e.currentTarget.style.borderColor="#94A3B8";e.currentTarget.style.color="#94A3B8";}}}
+      onMouseLeave={e=>{if(!isDropTarget&&!copyMode){e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.color="#CBD5E1";}}}>
+      {copyMode?"Paste here":isDropTarget?"↓":"+"}
     </div>
   );
 }
@@ -365,6 +396,43 @@ function MainApp({currentUser,onLogout}) {
   const [error,setError]=useState(null);
 
   const dragEntry=useRef(null);
+  const [undoStack,setUndoStack]=useState([]); // each item: {type, data}
+
+  function pushUndo(type, data) {
+    setUndoStack(prev=>[...prev.slice(-19),{type,data}]);
+  }
+
+  async function handleUndo() {
+    if(undoStack.length===0) return;
+    const last=undoStack[undoStack.length-1];
+    setUndoStack(prev=>prev.slice(0,-1));
+    setSaving(true);
+    try {
+      if(last.type==="addEntries") {
+        // Remove entries that were added
+        for(const id of last.data.ids) await db("DELETE","entries",null,`?id=eq.${id}`);
+        setEntries(prev=>prev.filter(e=>!last.data.ids.includes(e.id)));
+      } else if(last.type==="editEntry") {
+        // Restore previous entry state
+        const e=last.data.prev;
+        await db("PATCH","entries",{staff_id:e.staffId,job_id:e.jobId,sub_item_id:e.subItemId,date_str:e.dateStr,slot:e.slot,hours:e.hours,misc_note:e.miscNote},`?id=eq.${e.id}`);
+        setEntries(prev=>prev.map(en=>en.id===e.id?e:en));
+      } else if(last.type==="deleteEntry") {
+        // Re-insert deleted entry
+        const e=last.data.entry;
+        const [inserted]=await db("POST","entries",[{staff_id:e.staffId,job_id:e.jobId,sub_item_id:e.subItemId,date_str:e.dateStr,slot:e.slot,hours:e.hours,misc_note:e.miscNote}]);
+        setEntries(prev=>[...prev,{id:inserted.id,staffId:inserted.staff_id,jobId:inserted.job_id,subItemId:inserted.sub_item_id,dateStr:inserted.date_str,slot:inserted.slot,hours:inserted.hours,miscNote:inserted.misc_note||null}]);
+      } else if(last.type==="moveEntry") {
+        // Restore previous position
+        const {id,prevStaffId,prevDateStr,prevSlot}=last.data;
+        await db("PATCH","entries",{staff_id:prevStaffId,date_str:prevDateStr,slot:prevSlot},`?id=eq.${id}`);
+        setEntries(prev=>prev.map(e=>e.id===id?{...e,staffId:prevStaffId,dateStr:prevDateStr,slot:prevSlot}:e));
+      }
+    } catch(e){setError("Undo failed.");}
+    setSaving(false);
+  }
+  const [copiedEntry,setCopiedEntry]=useState(null);
+  const [copyMode,setCopyMode]=useState(false);
   const [dropTarget,setDropTarget]=useState(null);
 
   const loadAll=useCallback(async()=>{
@@ -400,7 +468,7 @@ function MainApp({currentUser,onLogout}) {
 
   const visibleDays=useMemo(()=>{
     const days=[];const weeks=viewMode==="month"?4:viewWeeks;
-    for(let w=0;w<weeks;w++)for(let d=0;d<5;d++)days.push(addDays(anchorDate,w*7+d));
+    for(let w=0;w<weeks;w++)for(let d=0;d<6;d++)days.push(addDays(anchorDate,w*7+d)); // Mon-Sat
     return days;
   },[anchorDate,viewWeeks,viewMode]);
 
@@ -418,6 +486,22 @@ function MainApp({currentUser,onLogout}) {
 
   function openNewEntry(staffId,dateStr,slot){
     if(!canEdit||isPast(dateStr))return;
+    if(copyMode&&copiedEntry){
+      // Paste directly without opening modal
+      const pasteData={
+        mode:"new",staffId,dateStr,slot,
+        jobId:copiedEntry.jobId||null,
+        subItemId:copiedEntry.subItemId||null,
+        hours:copiedEntry.hours,
+        autoFill:false,
+        entryType:copiedEntry.miscNote?"misc":"job",
+        miscNote:copiedEntry.miscNote||null,
+        totalHours:0,
+      };
+      saveEntry(pasteData,null);
+      // Keep copy mode active so user can paste multiple times
+      return;
+    }
     setEntryModal({mode:"new",staffId,dateStr,slot,jobId:"",subItemId:"",hours:8,autoFill:true,entryType:"job",miscNote:""});
   }
   function openEditEntry(entry){
@@ -454,8 +538,11 @@ function MainApp({currentUser,onLogout}) {
           return;
         }
         const inserted=await db("POST","entries",buildRows(valid));
-        setEntries(prev=>[...prev,...inserted.map(e=>({id:e.id,staffId:e.staff_id,jobId:e.job_id,subItemId:e.sub_item_id,dateStr:e.date_str,slot:e.slot,hours:e.hours,miscNote:e.misc_note||null}))]);
+        const newMapped=inserted.map(e=>({id:e.id,staffId:e.staff_id,jobId:e.job_id,subItemId:e.sub_item_id,dateStr:e.date_str,slot:e.slot,hours:e.hours,miscNote:e.misc_note||null}));
+        pushUndo("addEntries",{ids:newMapped.map(e=>e.id)});
+        setEntries(prev=>[...prev,...newMapped]);
       } else {
+        const prevEntry=entries.find(e=>e.id===data.id);
         await db("PATCH","entries",{
           staff_id:data.staffId,
           job_id:data.entryType==="misc"?null:data.jobId,
@@ -463,6 +550,7 @@ function MainApp({currentUser,onLogout}) {
           date_str:data.dateStr,slot:data.slot,hours:data.hours,
           misc_note:data.entryType==="misc"?data.miscNote:null
         },`?id=eq.${data.id}`);
+        if(prevEntry) pushUndo("editEntry",{prev:prevEntry});
         setEntries(prev=>prev.map(e=>e.id===data.id?{...e,staffId:data.staffId,jobId:data.entryType==="misc"?null:data.jobId,subItemId:data.entryType==="misc"?null:data.subItemId||null,dateStr:data.dateStr,slot:data.slot,hours:data.hours,miscNote:data.entryType==="misc"?data.miscNote:null}:e));
       }
       setEntryModal(null);setTab("schedule");
@@ -472,7 +560,13 @@ function MainApp({currentUser,onLogout}) {
 
   async function removeEntry(id){
     setSaving(true);
-    try{await db("DELETE","entries",null,`?id=eq.${id}`);setEntries(prev=>prev.filter(e=>e.id!==id));setEntryModal(null);}
+    try{
+      const entry=entries.find(e=>e.id===id);
+      await db("DELETE","entries",null,`?id=eq.${id}`);
+      if(entry) pushUndo("deleteEntry",{entry});
+      setEntries(prev=>prev.filter(e=>e.id!==id));
+      setEntryModal(null);
+    }
     catch(e){setError("Failed to remove entry.");}
     setSaving(false);
   }
@@ -532,18 +626,23 @@ function MainApp({currentUser,onLogout}) {
   }
 
   function handleDragStart(e,entry){dragEntry.current=entry;e.dataTransfer.effectAllowed="move";}
-  function handleDragOver(e,staffId,dateStr,slot){if(!canEdit||isPast(dateStr))return;e.preventDefault();setDropTarget({staffId,dateStr,slot});}
+  function handleDragOver(e,staffId,dateStr,slot){if(!canEdit||isPast(dateStr))return;e.preventDefault();e.dataTransfer.dropEffect="move";setDropTarget({staffId,dateStr,slot});}
   function handleDragLeave(){setDropTarget(null);}
   async function handleDrop(e,staffId,dateStr,slot){
     e.preventDefault();setDropTarget(null);
     const entry=dragEntry.current;if(!entry||!canEdit)return;
     if(isPast(dateStr))return;
     if(entry.staffId===staffId&&entry.dateStr===dateStr&&entry.slot===slot)return;
-    try{await db("PATCH","entries",{staff_id:staffId,date_str:dateStr,slot},`?id=eq.${entry.id}`);setEntries(prev=>prev.map(en=>en.id===entry.id?{...en,staffId,dateStr,slot}:en));}
+    try{
+      pushUndo("moveEntry",{id:entry.id,prevStaffId:entry.staffId,prevDateStr:entry.dateStr,prevSlot:entry.slot});
+      await db("PATCH","entries",{staff_id:staffId,date_str:dateStr,slot},`?id=eq.${entry.id}`);
+      setEntries(prev=>prev.map(en=>en.id===entry.id?{...en,staffId,dateStr,slot}:en));
+    }
     catch(e){setError("Failed to move entry.");}
     dragEntry.current=null;
   }
   function handleDragEnd(){setDropTarget(null);dragEntry.current=null;}
+  function handleCopy(entry){setCopiedEntry(entry);setCopyMode(true);}
   function nextPreset(){return JOB_COLOUR_PRESETS[jobs.length%JOB_COLOUR_PRESETS.length];}
 
   const roleColors={admin:"#FEF3C7",manager:"#DBEAFE",staff:"#F0FDF4"};
@@ -563,7 +662,7 @@ function MainApp({currentUser,onLogout}) {
     <div style={{fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#F8FAFC",minHeight:"100vh"}}>
 
       {/* Header */}
-      <div style={{background:BRAND_HEADER_BG,padding:"0 24px"}}>
+      <div style={{background:BRAND_HEADER_BG,padding:"0 24px",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 8px rgba(0,0,0,0.15)"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",paddingTop:14,paddingBottom:14}}>
           <div style={{display:"flex",alignItems:"center",gap:14}}>
             <img src={CLIENT_LOGO} alt="Logo" style={{height:48,maxWidth:130,objectFit:"contain"}}/>
@@ -628,8 +727,9 @@ function MainApp({currentUser,onLogout}) {
 
       {/* Schedule Tab */}
       {tab==="schedule"&&(
-        <div style={{padding:16}}>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,flexWrap:"wrap"}}>
+        <div style={{padding:"0 16px 16px",position:"relative",zIndex:1}}>
+          <div style={{position:"sticky",top:115,zIndex:50,background:"#F8FAFC",paddingTop:12,paddingBottom:8,marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8,flexWrap:"wrap"}}>
             <div style={{display:"flex",background:"#E2E8F0",borderRadius:8,padding:3,gap:2}}>
               {[[1,"1 Week"],[2,"2 Weeks"],[3,"3 Weeks"],[4,"4 Weeks"],["month","Month"]].map(([v,label])=>(
                 <button key={v} onClick={()=>{if(v==="month"){setViewMode("month");}else{setViewMode("weeks");setViewWeeks(v);}}}
@@ -643,12 +743,18 @@ function MainApp({currentUser,onLogout}) {
               <button onClick={goToday} style={{padding:"5px 14px",border:"1px solid #CBD5E1",borderRadius:7,background:"#fff",cursor:"pointer",fontSize:13,color:"#475569"}}>Today</button>
               <button onClick={()=>navigate(1)} style={{padding:"5px 11px",border:"1px solid #CBD5E1",borderRadius:7,background:"#fff",cursor:"pointer",fontSize:16,color:"#475569"}}>›</button>
             </div>
-            <span style={{fontSize:13,color:"#64748B"}}>{formatDate(anchorDate)} – {formatDate(addDays(anchorDate,totalWeeks*7-3))}</span>
-            <button onClick={loadAll} style={{marginLeft:"auto",padding:"5px 12px",border:"1px solid #CBD5E1",borderRadius:7,background:"#fff",cursor:"pointer",fontSize:12,color:"#64748B"}}>↻ Refresh</button>
+            <span style={{fontSize:13,color:"#64748B"}}>{formatDate(anchorDate)} – {formatDate(addDays(anchorDate,totalWeeks*7-2))}</span>
+            <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+              <button onClick={handleUndo} disabled={undoStack.length===0}
+                style={{padding:"5px 12px",border:"1px solid #CBD5E1",borderRadius:7,background:undoStack.length>0?"#fff":"#F8FAFC",cursor:undoStack.length>0?"pointer":"not-allowed",fontSize:12,color:undoStack.length>0?"#475569":"#CBD5E1"}}>
+                ↩ Undo
+              </button>
+              <button onClick={loadAll} style={{padding:"5px 12px",border:"1px solid #CBD5E1",borderRadius:7,background:"#fff",cursor:"pointer",fontSize:12,color:"#64748B"}}>↻ Refresh</button>
+            </div>
           </div>
 
           {activeJobs.length>0&&(
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10,position:"relative",zIndex:0}}> 
               {activeJobs.map(j=>(
                 <div key={j.id} onClick={canEdit?()=>setJobModal({isNew:false,...j,subItems:subItems.filter(s=>s.jobId===j.id)}):undefined}
                   style={{background:j.bgColor,border:`1.5px solid ${j.borderColor}`,color:j.textColor,borderRadius:6,padding:"3px 10px",fontSize:12,fontWeight:600,cursor:canEdit?"pointer":"default"}}>
@@ -658,35 +764,40 @@ function MainApp({currentUser,onLogout}) {
             </div>
           )}
 
-          {canEdit&&<div style={{fontSize:11,color:"#94A3B8",marginBottom:8}}>💡 Drag any block to reassign · Past slots locked · Click + for job or misc entry</div>}
+                    {copyMode&&copiedEntry&&(
+            <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"#1D4ED8",borderRadius:10,padding:"10px 20px",display:"flex",alignItems:"center",gap:16,fontSize:13,color:"#fff",fontWeight:600,zIndex:9999,boxShadow:"0 4px 20px rgba(0,0,0,0.25)"}}>
+              📋 Copy mode — click any empty slot to paste
+              <button onClick={()=>{setCopyMode(false);setCopiedEntry(null);}} style={{background:"rgba(255,255,255,0.25)",border:"none",borderRadius:6,padding:"4px 12px",cursor:"pointer",color:"#fff",fontWeight:600,fontSize:12}}>Cancel</button>
+            </div>
+          )}
+          </div>{/* end sticky controls */}
           {!canEdit&&<div style={{fontSize:11,color:"#94A3B8",marginBottom:8,background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:6,padding:"5px 10px",display:"inline-block"}}>👁 View only — contact a manager to make changes</div>}
 
-          <div style={{overflowX:"auto",borderRadius:12,border:"1px solid #E2E8F0",background:"#fff"}}>
-            <table style={{borderCollapse:"collapse",minWidth:"100%",tableLayout:"fixed"}}>
+          <div style={{overflowX:"auto",overflowY:"auto",maxHeight:"calc(100vh - 280px)",borderRadius:12,border:"1px solid #E2E8F0",background:"#fff"}}>
+            <table style={{borderCollapse:"separate",borderSpacing:0,minWidth:"100%",tableLayout:"fixed"}}>
               <colgroup>
-                <col style={{width:110}}/><col style={{width:44}}/>
+                <col style={{width:110}}/>
                 {visibleDays.map((_,i)=><col key={i} style={{width:118}}/>)}
               </colgroup>
               <thead>
-                {totalWeeks>1&&(
-                  <tr>
-                    <td colSpan={2} style={{border:"1px solid #E2E8F0",background:"#F8FAFC"}}/>
-                    {weekStarts.map((ws,wi)=>(
-                      <td key={wi} colSpan={5} style={{border:"1px solid #E2E8F0",borderLeft:wi>0?"2px solid #94A3B8":"1px solid #E2E8F0",background:"#F1F5F9",padding:"5px 8px",fontSize:12,fontWeight:600,color:"#475569",textAlign:"center"}}>Week of {formatDate(ws)}</td>
-                    ))}
-                  </tr>
-                )}
                 <tr>
-                  <th style={{border:"1px solid #E2E8F0",background:"#F8FAFC",padding:"8px 10px",fontSize:12,color:"#64748B",textAlign:"left",fontWeight:600}}>Staff</th>
-                  <th style={{border:"1px solid #E2E8F0",background:"#F8FAFC",padding:"4px",fontSize:11,color:"#94A3B8",textAlign:"center"}}>Slot</th>
+                  <th style={{border:"1px solid #E2E8F0",background:"#F8FAFC",padding:"4px 8px",fontSize:12,color:"#64748B",textAlign:"left",fontWeight:600,position:"sticky",top:0,left:0,zIndex:20,verticalAlign:"bottom",width:110,minWidth:110}}></th>
                   {visibleDays.map((d,i)=>{
                     const ds=isoDate(d);const isToday=ds===todayStr;
-                    const weekIdx=Math.floor(i/5);const isWeekBound=d.getDay()===1&&weekIdx>0;
+                    const weekIdx=Math.floor(i/6);const isWeekBound=d.getDay()===1&&weekIdx>0;
+                    const isSat=d.getDay()===6;
+                    const isFirstDayOfWeek=i%6===0;
                     return(
-                      <th key={i} style={{border:"1px solid #E2E8F0",borderLeft:isWeekBound?"2px solid #94A3B8":"1px solid #E2E8F0",background:isToday?"#DBEAFE":"#F8FAFC",padding:"6px 4px",fontSize:11,color:isToday?"#1D4ED8":isPast(ds)?"#CBD5E1":"#64748B",textAlign:"center",fontWeight:isToday?700:500}}>
-                        <div>{d.toLocaleDateString("en-AU",{weekday:"short"})}</div>
-                        <div style={{fontSize:12,fontWeight:600}}>{d.getDate()}</div>
-                        <div style={{fontSize:10,opacity:0.8}}>{d.toLocaleDateString("en-AU",{month:"short"})}</div>
+                      <th key={i} style={{border:"1px solid #E2E8F0",borderLeft:isWeekBound?"2px solid #94A3B8":"1px solid #E2E8F0",background:isToday?"#DBEAFE":isSat?"#F1F5F9":"#F8FAFC",padding:"3px 3px",fontSize:11,color:isToday?"#1D4ED8":isSat?"#94A3B8":isPast(ds)?"#CBD5E1":"#64748B",textAlign:"center",fontWeight:isToday?700:500,position:"sticky",top:0,zIndex:9}}>
+                        {totalWeeks>1&&isFirstDayOfWeek&&(
+                          <div style={{fontSize:10,fontWeight:600,color:"#475569",background:"#F1F5F9",margin:"-3px -3px 2px -3px",padding:"2px 4px",borderBottom:"1px solid #E2E8F0"}}>
+                            Week of {formatDate(addDays(anchorDate,weekIdx*7))}
+                          </div>
+                        )}
+                        {totalWeeks>1&&!isFirstDayOfWeek&&(
+                          <div style={{height:22,margin:"-3px -3px 2px -3px",borderBottom:"1px solid #E2E8F0",background:"#F1F5F9"}}/>
+                        )}
+                        <div style={{fontSize:11,fontWeight:600}}>{d.toLocaleDateString("en-AU",{weekday:"short"})} {d.getDate()}</div>
                       </th>
                     );
                   })}
@@ -699,15 +810,15 @@ function MainApp({currentUser,onLogout}) {
                   [0,1].map(slot=>(
                     <tr key={`${st.id}-${slot}`} style={{borderBottom:slot===1?"2px solid #CBD5E1":"none"}}>
                       {slot===0&&(
-                        <td rowSpan={2} style={{border:"1px solid #E2E8F0",borderBottom:"2px solid #CBD5E1",padding:"6px 10px",verticalAlign:"middle",background:si%2===0?"#fff":"#FAFAFA"}}>
-                          <div style={{fontWeight:600,fontSize:13,color:"#1E293B",marginBottom:2}}>{st.name}</div>
+                        <td rowSpan={2} style={{border:"1px solid #E2E8F0",borderBottom:"2px solid #CBD5E1",padding:"4px 8px",verticalAlign:"middle",background:si%2===0?"#fff":"#FAFAFA",}}>
+                          <div style={{fontWeight:600,fontSize:12,color:"#1E293B",marginBottom:1}}>{st.name}</div>
                           {canEdit&&<button onClick={()=>setStaffModal({isNew:false,...st})} style={{fontSize:11,color:"#94A3B8",background:"none",border:"1px solid #E2E8F0",borderRadius:4,padding:"1px 6px",cursor:"pointer"}}>Edit</button>}
                         </td>
                       )}
-                      <td style={{border:"1px solid #E2E8F0",padding:"2px 4px",fontSize:10,color:"#94A3B8",textAlign:"center",background:si%2===0?"#fff":"#FAFAFA"}}>{slot===0?"S1":"S2"}</td>
                       {visibleDays.map((d,di)=>{
                         const ds=isoDate(d);const isToday=ds===todayStr;
                         const weekIdx=Math.floor(di/5);const isWeekBound=d.getDay()===1&&weekIdx>0;
+                        const isSat=d.getDay()===6;
                         const k=`${st.id}|${ds}|${slot}`;
                         const entry=entryMap[k];
                         const job=entry&&!entry.miscNote?jobs.find(j=>j.id===entry.jobId):null;
@@ -716,17 +827,17 @@ function MainApp({currentUser,onLogout}) {
                         const isConflict=conflictKeys.has(k);
                         return(
                           <td key={di}
-                            style={{border:"1px solid #E2E8F0",borderLeft:isWeekBound?"2px solid #94A3B8":"1px solid #E2E8F0",padding:3,verticalAlign:"top",background:isToday?"rgba(219,234,254,0.18)":si%2===0?"#fff":"#FAFAFA"}}
+                            style={{border:"1px solid #E2E8F0",borderLeft:isWeekBound?"2px solid #94A3B8":"1px solid #E2E8F0",padding:2,verticalAlign:"top",background:isToday?"rgba(219,234,254,0.18)":isSat?"#F1F5F9":si%2===0?"#fff":"#FAFAFA"}}
                             onDragOver={e=>handleDragOver(e,st.id,ds,slot)}
                             onDragLeave={handleDragLeave}
                             onDrop={e=>handleDrop(e,st.id,ds,slot)}>
                             {entry
                               ? entry.miscNote
-                                ? <MiscBlock note={entry.miscNote} hours={entry.hours} entry={entry} conflict={isConflict} onClick={()=>openEditEntry(entry)} onDragStart={handleDragStart} onDragEnd={handleDragEnd} canEdit={canEdit}/>
+                                ? <MiscBlock note={entry.miscNote} hours={entry.hours} entry={entry} conflict={isConflict} onClick={()=>openEditEntry(entry)} onDragStart={handleDragStart} onDragEnd={handleDragEnd} canEdit={canEdit} onCopy={handleCopy} copyMode={copyMode}/>
                                 : job
-                                  ? <JobBlock job={job} subItem={subItem} hours={entry.hours} productiveHours={st.productiveHours} entry={entry} conflict={isConflict} onClick={()=>openEditEntry(entry)} onDragStart={handleDragStart} onDragEnd={handleDragEnd} canEdit={canEdit}/>
-                                  : <EmptySlot onClick={()=>openNewEntry(st.id,ds,slot)} isDropTarget={isDrop} isPastDate={isPast(ds)} canEdit={canEdit}/>
-                              : <EmptySlot onClick={()=>openNewEntry(st.id,ds,slot)} isDropTarget={isDrop} isPastDate={isPast(ds)} canEdit={canEdit}/>
+                                  ? <JobBlock job={job} subItem={subItem} hours={entry.hours} productiveHours={st.productiveHours} entry={entry} conflict={isConflict} onClick={()=>openEditEntry(entry)} onDragStart={handleDragStart} onDragEnd={handleDragEnd} canEdit={canEdit} onCopy={handleCopy} copyMode={copyMode}/>
+                                  : <EmptySlot onClick={()=>openNewEntry(st.id,ds,slot)} isDropTarget={isDrop} isPastDate={isPast(ds)} canEdit={canEdit} copyMode={copyMode}/>
+                              : <EmptySlot onClick={isSat?undefined:()=>openNewEntry(st.id,ds,slot)} isDropTarget={isDrop} isPastDate={isPast(ds)||isSat} canEdit={canEdit} copyMode={copyMode}/>
                             }
                           </td>
                         );
@@ -899,7 +1010,7 @@ function EntryModal({data,staff,jobs,subItems,onSave,onRemove,onClose}) {
     <Modal title={form.mode==="new"?"New Schedule Entry":"Edit Schedule Entry"} onClose={onClose} small>
       {/* Entry type switcher */}
       <div style={{display:"flex",gap:6,marginBottom:12,background:"#F1F5F9",borderRadius:8,padding:3}}>
-        {[["job","📋 Job Entry"],["misc","📌 Misc Entry"]].map(([type,label])=>(
+        {[["job","📋 Job Entry"],["misc","Misc Entry"]].map(([type,label])=>(
           <button key={type} onClick={()=>set("entryType",type)}
             style={{flex:1,padding:"6px",borderRadius:6,border:"none",fontSize:12,fontWeight:500,cursor:"pointer",background:form.entryType===type?"#fff":"transparent",color:form.entryType===type?"#1E293B":"#64748B",boxShadow:form.entryType===type?"0 1px 3px rgba(0,0,0,0.1)":"none"}}>
             {label}
@@ -975,6 +1086,10 @@ function JobModal({data,onSave,onDelete,onClose}) {
   const [form,setForm]=useState({...data,subItems:data.subItems.map(s=>({...s}))});
   function set(k,v){setForm(f=>({...f,[k]:v}));}
   function addSubItem(){setForm(f=>({...f,subItems:[...f.subItems,{id:`new_${Date.now()}`,isNew:true,name:"",totalHours:0}]}));}
+  function addSubItemWithName(name){
+    const newId=`new_${Date.now()}`;
+    setForm(f=>({...f,subItems:[...f.subItems,{id:newId,isNew:true,name:name==="__custom__"?"":name,totalHours:0,autoFocus:name==="__custom__"}]}));
+  }
   function setSubItem(idx,field,value){setForm(f=>{const s=[...f.subItems];s[idx]={...s[idx],[field]:value};return{...f,subItems:s};});}
   function removeSubItem(idx){setForm(f=>{const s=[...f.subItems];s.splice(idx,1);return{...f,subItems:s};});}
   return(
@@ -1000,12 +1115,25 @@ function JobModal({data,onSave,onDelete,onClose}) {
           <div style={{display:"flex",flexDirection:"column",gap:7}}>
             {form.subItems.map((si,i)=>(
               <div key={si.id} style={{display:"flex",gap:6,alignItems:"center"}}>
-                <input value={si.name} onChange={e=>setSubItem(i,"name",e.target.value)} placeholder="Item name" style={{flex:2,padding:"6px 8px",border:"1px solid #CBD5E1",borderRadius:7,fontSize:13,outline:"none"}}/>
+                <input value={si.name} onChange={e=>setSubItem(i,"name",e.target.value)} placeholder="Item name" autoFocus={!!si.autoFocus} style={{flex:2,padding:"6px 8px",border:"1px solid #CBD5E1",borderRadius:7,fontSize:13,outline:"none"}}/>
                 <input type="number" value={si.totalHours||""} onChange={e=>setSubItem(i,"totalHours",Number(e.target.value))} placeholder="Hrs" min={0} step={1} style={{width:60,padding:"6px 8px",border:"1px solid #CBD5E1",borderRadius:7,fontSize:13,outline:"none"}}/>
                 <button onClick={()=>removeSubItem(i)} style={{background:"none",border:"1px solid #FCA5A5",color:"#EF4444",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13}}>×</button>
               </div>
             ))}
-            <Btn variant="ghost" onClick={addSubItem} style={{alignSelf:"flex-start",fontSize:12}}>+ Add Item</Btn>
+            {/* Preset dropdown + Add Item */}
+            <div style={{display:"flex",gap:6,alignItems:"center",marginTop:2}}>
+              <select
+                value=""
+                onChange={e=>{
+                  if(e.target.value) addSubItemWithName(e.target.value);
+                  e.target.value="";
+                }}
+                style={{flex:2,padding:"6px 8px",border:"1px solid #CBD5E1",borderRadius:7,fontSize:13,background:"#fff",color:"#475569",outline:"none"}}>
+                <option value="">+ Add new item...</option>
+                {JOINERY_ITEM_PRESETS.map(p=><option key={p} value={p}>{p}</option>)}
+                <option value="__custom__">Custom (type below)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

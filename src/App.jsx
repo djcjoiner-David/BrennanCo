@@ -4,7 +4,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 // ║           CLIENT CONFIGURATION — EDIT THIS SECTION           ║
 // ╠══════════════════════════════════════════════════════════════╣
 
-const CLIENT_NAME     = "Brennan & Co";
+const CLIENT_NAME     = "";
 const CLIENT_TAGLINE  = "";
 const CLIENT_LOGO     = "/logo.jpg";
 const PAGE_TITLE      = "Production Schedule";
@@ -13,27 +13,27 @@ const BRAND_HEADER_BG = "#000000";
 const BRAND_GOLD      = "#ffffff";
 const BRAND_CREAM     = "#FFF8EC";
 
-const SUPABASE_URL    = "https://mhnvnlinaepvszdulltq.supabase.co";
-const SUPABASE_KEY    = "sb_publishable_4rp1WAYTbs2G5d4uq-NRkQ_c4GRWf-2";
-
 // ╚══════════════════════════════════════════════════════════════╝
 
+function parseQuery(query) {
+  const params = new URLSearchParams(query.replace(/^\?/, ""));
+  const obj = {};
+  for (const [k, v] of params.entries()) obj[k] = v;
+  return obj;
+}
+
 async function db(method, table, body, query="") {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+  const extraParams = parseQuery(query);
+  const qs = new URLSearchParams({ table, ...extraParams }).toString();
+  const res = await fetch(`/api/db?${qs}`, {
     method,
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-      "Prefer": method==="POST" ? "return=representation" : method==="PATCH"||method==="DELETE" ? "return=representation" : "",
-    },
+    headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) { const e = await res.text(); throw new Error(e); }
   const text = await res.text();
   return text ? JSON.parse(text) : [];
 }
-
 const TODAY = new Date();
 TODAY.setHours(0,0,0,0);
 const todayStr = isoDate(TODAY);

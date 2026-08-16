@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid table' });
   }
 
-  const sql = neon(process.env.DATABASE_URL);
+  const sql = neon(process.env.DATABASE_URL_RESTORE);
 
   function buildConditions(filterObj, paramsArr) {
     const conditions = [];

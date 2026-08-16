@@ -4,16 +4,23 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from "react"
 // ║           CLIENT CONFIGURATION — EDIT THIS SECTION           ║
 // ╠══════════════════════════════════════════════════════════════╣
 
-const CLIENT_NAME     = "DJC Joiner";
-const CLIENT_TAGLINE  = "Consulting · Mentoring · Growth";
+const CLIENT_NAME     = "";
+const CLIENT_TAGLINE  = "";
 const CLIENT_LOGO     = "/logo.jpg";
 const PAGE_TITLE      = "Production Schedule";
 
-const BRAND_HEADER_BG = "#3D2E14";
-const BRAND_GOLD      = "#E8A030";
+const BRAND_HEADER_BG = "#000000";
+const BRAND_GOLD      = "#ffffff";
 const BRAND_CREAM     = "#FFF8EC";
 
 // ╚══════════════════════════════════════════════════════════════╝
+
+function hexToRgba(hex, alpha) {
+  const h = hex.replace("#","");
+  const bigint = parseInt(h.length===3 ? h.split("").map(c=>c+c).join("") : h, 16);
+  const r = (bigint>>16)&255, g=(bigint>>8)&255, b=bigint&255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 function parseQuery(query) {
   // Converts Supabase-style "?order=created_at" or "?id=eq.123" into an object
@@ -244,7 +251,7 @@ function Btn({variant="default",style:s,...props}) {
 function Spinner({text="Loading..."}) {
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",flexDirection:"column",gap:16}}>
-      <div style={{width:40,height:40,border:"4px solid #E2E8F0",borderTop:"4px solid #E8A030",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+      <div style={{width:40,height:40,border:"4px solid #E2E8F0",borderTop:`4px solid ${BRAND_GOLD}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
       <div style={{color:"#64748B",fontSize:14}}>{text}</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -328,7 +335,7 @@ function LoginScreen({onLogin}) {
       <div style={{background:BRAND_HEADER_BG,padding:"16px 24px",display:"flex",alignItems:"center",gap:14}}>
         <img src={CLIENT_LOGO} alt="Logo" style={{height:44,maxWidth:120,objectFit:"contain"}}/>
         <div>
-          <div style={{fontSize:20,fontWeight:700,color:"#E8A030"}}>{CLIENT_NAME}</div>
+          <div style={{fontSize:20,fontWeight:700,color:BRAND_GOLD}}>{CLIENT_NAME}</div>
           <div style={{fontSize:11,color:BRAND_GOLD,letterSpacing:"2px",textTransform:"uppercase"}}>{CLIENT_TAGLINE}</div>
         </div>
       </div>
@@ -343,7 +350,7 @@ function LoginScreen({onLogin}) {
             <Inp label="Password" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password"/>
             {error&&<div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"8px 12px",fontSize:13,color:"#DC2626",marginBottom:12}}>{error}</div>}
             <button type="submit" disabled={loading}
-              style={{width:"100%",padding:"10px",borderRadius:8,border:"none",background:BRAND_HEADER_BG,color:"#E8A030",fontSize:15,fontWeight:600,cursor:loading?"not-allowed":"pointer",marginTop:4}}>
+              style={{width:"100%",padding:"10px",borderRadius:8,border:"none",background:BRAND_HEADER_BG,color:BRAND_GOLD,fontSize:15,fontWeight:600,cursor:loading?"not-allowed":"pointer",marginTop:4}}>
               {loading?"Signing in...":"Sign In"}
             </button>
           </form>
@@ -1030,7 +1037,7 @@ function MainApp({currentUser,onLogout}) {
     <div style={{fontFamily:"'Segoe UI',system-ui,sans-serif",background:"#F8FAFC",minHeight:"100vh"}}>
       <div style={{background:BRAND_HEADER_BG,padding:"14px 24px",display:"flex",alignItems:"center",gap:14}}>
         <img src={CLIENT_LOGO} alt="Logo" style={{height:44,maxWidth:120,objectFit:"contain"}}/>
-        <div><div style={{fontSize:20,fontWeight:700,color:"#E8A030"}}>{CLIENT_NAME}</div><div style={{fontSize:11,color:BRAND_GOLD,letterSpacing:"2px",textTransform:"uppercase"}}>{CLIENT_TAGLINE}</div></div>
+        <div><div style={{fontSize:20,fontWeight:700,color:BRAND_GOLD}}>{CLIENT_NAME}</div><div style={{fontSize:11,color:BRAND_GOLD,letterSpacing:"2px",textTransform:"uppercase"}}>{CLIENT_TAGLINE}</div></div>
       </div>
       <Spinner text="Loading schedule..."/>
     </div>
@@ -1048,13 +1055,13 @@ function MainApp({currentUser,onLogout}) {
               <div style={{fontSize:20,fontWeight:700,color:BRAND_GOLD,lineHeight:1.2}}>{CLIENT_NAME}</div>
               <div style={{fontSize:11,color:BRAND_GOLD,letterSpacing:"2px",textTransform:"uppercase",marginTop:2}}>{CLIENT_TAGLINE}</div>
             </div>
-            <div style={{width:1,height:36,background:"#E8A030",opacity:0.35,margin:"0 8px"}}/>
+            <div style={{width:1,height:36,background:BRAND_GOLD,opacity:0.35,margin:"0 8px"}}/>
             <div style={{fontSize:14,color:"#FFF8EC",opacity:0.7}}>Production Schedule</div>
-            {saving&&<div style={{fontSize:12,color:"#E8A030",marginLeft:8}}>Saving...</div>}
+            {saving&&<div style={{fontSize:12,color:BRAND_GOLD,marginLeft:8}}>Saving...</div>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.08)",borderRadius:8,padding:"6px 12px"}}>
-              <div style={{width:28,height:28,borderRadius:"50%",background:"#E8A030",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#3D2E14"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:BRAND_GOLD,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:BRAND_HEADER_BG}}>
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
               <div>
@@ -1064,30 +1071,30 @@ function MainApp({currentUser,onLogout}) {
             </div>
             {isAdmin&&(
               <button onClick={()=>setUserMgmtOpen(true)}
-                style={{padding:"7px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",border:"1.5px solid rgba(232,160,48,0.4)",background:"transparent",color:"#E8A030"}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor="#E8A030";}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(232,160,48,0.4)";}}>
+                style={{padding:"7px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",border:`1.5px solid ${hexToRgba(BRAND_GOLD,0.4)}`,background:"transparent",color:BRAND_GOLD}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor=BRAND_GOLD;}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=`${hexToRgba(BRAND_GOLD,0.4)}`;}}>
                 👥 Users
               </button>
             )}
             {isManager&&(
               <>
                 <button onClick={()=>setJobModal({isNew:true,jobNo:"",name:"",...nextPreset(),subItems:[]})}
-                  style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:"1.5px solid #E8A030",background:"transparent",color:"#E8A030"}}
-                  onMouseEnter={e=>{e.currentTarget.style.background="#E8A030";e.currentTarget.style.color="#3D2E14";}}
-                  onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color="#E8A030";}}>
+                  style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:`1.5px solid ${BRAND_GOLD}`,background:"transparent",color:BRAND_GOLD}}
+                  onMouseEnter={e=>{e.currentTarget.style.background=BRAND_GOLD;e.currentTarget.style.color=BRAND_HEADER_BG;}}
+                  onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=BRAND_GOLD;}}>
                   + Add Job
                 </button>
                 <button onClick={()=>setStaffModal({isNew:true,name:"",productiveHours:8})}
-                  style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:"1.5px solid #E8A030",background:"#E8A030",color:"#3D2E14"}}
+                  style={{padding:"7px 14px",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",border:`1.5px solid ${BRAND_GOLD}`,background:BRAND_GOLD,color:BRAND_HEADER_BG}}
                   onMouseEnter={e=>{e.currentTarget.style.background="#F5C060";}}
-                  onMouseLeave={e=>{e.currentTarget.style.background="#E8A030";}}>
+                  onMouseLeave={e=>{e.currentTarget.style.background=BRAND_GOLD;}}>
                   + Add Staff
                 </button>
               </>
             )}
             <button onClick={()=>setWorkHoursOpen(true)}
-                  style={{padding:"7px 12px",borderRadius:8,fontSize:12,cursor:"pointer",border:"1.5px solid rgba(232,160,48,0.5)",background:"rgba(232,160,48,0.1)",color:"#E8A030",fontWeight:500}}>
+                  style={{padding:"7px 12px",borderRadius:8,fontSize:12,cursor:"pointer",border:`1.5px solid ${hexToRgba(BRAND_GOLD,0.5)}`,background:`${hexToRgba(BRAND_GOLD,0.1)}`,color:BRAND_GOLD,fontWeight:500}}>
                   🕐 {workStart}–{workEnd}
                 </button>
                 <button onClick={onLogout} style={{padding:"7px 12px",borderRadius:8,fontSize:12,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,248,236,0.6)"}}>Sign Out</button>
@@ -1095,7 +1102,7 @@ function MainApp({currentUser,onLogout}) {
         </div>
         <div style={{display:"flex"}}>
           {[["schedule","📅 Schedule"],["summary","📋 Job Summary"]].map(([key,label])=>(
-            <button key={key} onClick={()=>setTab(key)} style={{padding:"9px 22px",fontSize:14,fontWeight:500,cursor:"pointer",background:"none",border:"none",borderBottom:tab===key?"2.5px solid #E8A030":"2.5px solid transparent",color:tab===key?"#E8A030":"rgba(255,248,236,0.55)",transition:"all 0.15s"}}>{label}</button>
+            <button key={key} onClick={()=>setTab(key)} style={{padding:"9px 22px",fontSize:14,fontWeight:500,cursor:"pointer",background:"none",border:"none",borderBottom:tab===key?`2.5px solid ${BRAND_GOLD}`:"2.5px solid transparent",color:tab===key?BRAND_GOLD:"rgba(255,248,236,0.55)",transition:"all 0.15s"}}>{label}</button>
           ))}
         </div>
       </div>

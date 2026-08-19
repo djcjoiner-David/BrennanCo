@@ -899,42 +899,39 @@ function MainApp({currentUser,onLogout}) {
         return[id,staffOrderIds[newIdx]];
       }));
 
-      // Determine which selected entries can actually move without landing on
-      // an occupied slot. This has to be resolved iteratively rather than in
-      // one pass: a slot vacated by one mover can free up space for another,
-      // but a mover that ends up blocked (and so stays put) still occupies its
-      // original slot, which can in turn block someone else who was counting
-      // on that slot being freed. Two movers can also both compute the same
-      // destination, in which case only one is allowed to win it.
+      // Each entry lands at its intended target slot if free. If that slot is
+      // already taken (by an existing entry outside this move, or a Saturday,
+      // which auto-scheduling always skips), walk forward day by day to the
+      // next open weekday for that same staff member/slot instead of dropping
+      // the entry. Processed in original-date order so earlier entries claim
+      // their intended spot first; a locally-tracked set stops two entries in
+      // this same move from both landing on the same freshly-claimed slot.
       const movingIds=new Set(idsToMove);
-      const targetOf={},originOf={};
-      idsToMove.forEach(id=>{
-        targetOf[id]=`${idToStaff[id]}|${idToDate[id]}|${idToSlot[id]}`;
-        const en=entries.find(x=>x.id===id);
-        originOf[id]=`${en.staffId}|${en.dateStr}|${en.slot}`;
-      });
-      const willMove={};idsToMove.forEach(id=>willMove[id]=true); // optimistic start
-      let changed=true;
-      while(changed){
-        changed=false;
-        for(const id of idsToMove){
-          if(!willMove[id])continue;
-          const tgt=targetOf[id];
-          const fixedOccupant=entryMap[tgt]&&!movingIds.has(entryMap[tgt].id);
-          const blockerStillThere=idsToMove.some(oid=>oid!==id&&originOf[oid]===tgt&&!willMove[oid]);
-          const losesToEarlierMover=idsToMove.some(oid=>oid!==id&&willMove[oid]&&targetOf[oid]===tgt&&oid<id);
-          if(fixedOccupant||blockerStillThere||losesToEarlierMover){
-            willMove[id]=false;
-            changed=true;
+      const localOccupied=new Set();
+      function findNextFreeSlot(staffId,slot,startDateStr){
+        let cur=parseISO(startDateStr);
+        for(let i=0;i<365;i++){
+          if(!isWeekend(cur)){
+            const ds=isoDate(cur);
+            const key=`${staffId}|${ds}|${slot}`;
+            const occupant=entryMap[key];
+            const fixedBlocked=occupant&&!movingIds.has(occupant.id);
+            if(!fixedBlocked&&!localOccupied.has(key))return ds;
           }
+          cur=addDays(cur,1);
         }
+        return startDateStr;
       }
-      const updates=idsToMove.filter(id=>willMove[id]).map(id=>({id,newDate:idToDate[id],newStaffId:idToStaff[id],newSlot:idToSlot[id]}));
-      const skipped=idsToMove.length-updates.length;
-      if(updates.length===0){
-        setError("Couldn't move - every target slot is already occupied.");
-        return;
-      }
+
+      let shifted=false;
+      const updates=sortedSelected.map(id=>{
+        const staffId=idToStaff[id],slot=idToSlot[id];
+        const intendedDate=idToDate[id];
+        const finalDate=findNextFreeSlot(staffId,slot,intendedDate);
+        if(finalDate!==intendedDate)shifted=true;
+        localOccupied.add(`${staffId}|${finalDate}|${slot}`);
+        return{id,newDate:finalDate,newStaffId:staffId,newSlot:slot};
+      });
 
       const prevStates=updates.map(({id})=>{
         const en=entries.find(x=>x.id===id);
@@ -948,7 +945,7 @@ function MainApp({currentUser,onLogout}) {
         const u=updates.find(u=>u.id===x.id);
         return u?{...x,staffId:u.newStaffId,dateStr:u.newDate,slot:u.newSlot}:x;
       }));
-      if(skipped>0) setError(`Moved ${updates.length} - skipped ${skipped} (slot already occupied).`);
+      if(shifted) setError(`Moved ${updates.length} - some shifted forward to the next open day.`);
       setSelectedEntries(new Set());
       setSelectionMode(false);
       setMoveMode(false);

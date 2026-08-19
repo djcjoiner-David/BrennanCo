@@ -945,7 +945,6 @@ function MainApp({currentUser,onLogout}) {
         const u=updates.find(u=>u.id===x.id);
         return u?{...x,staffId:u.newStaffId,dateStr:u.newDate,slot:u.newSlot}:x;
       }));
-      if(shifted) setError(`Moved ${updates.length} - some shifted forward to the next open day.`);
       setSelectedEntries(new Set());
       setSelectionMode(false);
       setMoveMode(false);

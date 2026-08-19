@@ -899,12 +899,28 @@ function MainApp({currentUser,onLogout}) {
         return[id,staffOrderIds[newIdx]];
       }));
 
-      const prevStates=idsToMove.map(id=>{
+      // Don't silently overwrite an existing entry at the target (job OR misc) -
+      // skip any target slot that's already occupied by something outside this
+      // move set, same protection performGroupCopy already has. A slot occupied
+      // by another entry that's ALSO being moved in this same batch doesn't count,
+      // since that entry is about to vacate it.
+      const movingIds=new Set(idsToMove);
+      const allPlanned=idsToMove.map(id=>({id,newDate:idToDate[id],newStaffId:idToStaff[id],newSlot:idToSlot[id]}));
+      const updates=allPlanned.filter(({newDate,newStaffId,newSlot})=>{
+        const occupant=entryMap[`${newStaffId}|${newDate}|${newSlot}`];
+        return !occupant||movingIds.has(occupant.id);
+      });
+      const skipped=allPlanned.length-updates.length;
+      if(updates.length===0){
+        setError("Couldn't move - every target slot is already occupied.");
+        return;
+      }
+
+      const prevStates=updates.map(({id})=>{
         const en=entries.find(x=>x.id===id);
         return{id,prevStaffId:en.staffId,prevDateStr:en.dateStr,prevSlot:en.slot};
       });
       pushUndo("moveMultiple",{prevStates});
-      const updates=idsToMove.map(id=>({id,newDate:idToDate[id],newStaffId:idToStaff[id],newSlot:idToSlot[id]}));
       await Promise.all(updates.map(({id,newDate,newStaffId,newSlot})=>
         db("PATCH","entries",{staff_id:newStaffId,date_str:newDate,slot:newSlot},`?id=eq.${id}`)
       ));
@@ -912,6 +928,7 @@ function MainApp({currentUser,onLogout}) {
         const u=updates.find(u=>u.id===x.id);
         return u?{...x,staffId:u.newStaffId,dateStr:u.newDate,slot:u.newSlot}:x;
       }));
+      if(skipped>0) setError(`Moved ${updates.length} - skipped ${skipped} (slot already occupied).`);
       setSelectedEntries(new Set());
       setSelectionMode(false);
       setMoveMode(false);

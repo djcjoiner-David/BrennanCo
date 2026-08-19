@@ -899,18 +899,38 @@ function MainApp({currentUser,onLogout}) {
         return[id,staffOrderIds[newIdx]];
       }));
 
-      // Don't silently overwrite an existing entry at the target (job OR misc) -
-      // skip any target slot that's already occupied by something outside this
-      // move set, same protection performGroupCopy already has. A slot occupied
-      // by another entry that's ALSO being moved in this same batch doesn't count,
-      // since that entry is about to vacate it.
+      // Determine which selected entries can actually move without landing on
+      // an occupied slot. This has to be resolved iteratively rather than in
+      // one pass: a slot vacated by one mover can free up space for another,
+      // but a mover that ends up blocked (and so stays put) still occupies its
+      // original slot, which can in turn block someone else who was counting
+      // on that slot being freed. Two movers can also both compute the same
+      // destination, in which case only one is allowed to win it.
       const movingIds=new Set(idsToMove);
-      const allPlanned=idsToMove.map(id=>({id,newDate:idToDate[id],newStaffId:idToStaff[id],newSlot:idToSlot[id]}));
-      const updates=allPlanned.filter(({newDate,newStaffId,newSlot})=>{
-        const occupant=entryMap[`${newStaffId}|${newDate}|${newSlot}`];
-        return !occupant||movingIds.has(occupant.id);
+      const targetOf={},originOf={};
+      idsToMove.forEach(id=>{
+        targetOf[id]=`${idToStaff[id]}|${idToDate[id]}|${idToSlot[id]}`;
+        const en=entries.find(x=>x.id===id);
+        originOf[id]=`${en.staffId}|${en.dateStr}|${en.slot}`;
       });
-      const skipped=allPlanned.length-updates.length;
+      const willMove={};idsToMove.forEach(id=>willMove[id]=true); // optimistic start
+      let changed=true;
+      while(changed){
+        changed=false;
+        for(const id of idsToMove){
+          if(!willMove[id])continue;
+          const tgt=targetOf[id];
+          const fixedOccupant=entryMap[tgt]&&!movingIds.has(entryMap[tgt].id);
+          const blockerStillThere=idsToMove.some(oid=>oid!==id&&originOf[oid]===tgt&&!willMove[oid]);
+          const losesToEarlierMover=idsToMove.some(oid=>oid!==id&&willMove[oid]&&targetOf[oid]===tgt&&oid<id);
+          if(fixedOccupant||blockerStillThere||losesToEarlierMover){
+            willMove[id]=false;
+            changed=true;
+          }
+        }
+      }
+      const updates=idsToMove.filter(id=>willMove[id]).map(id=>({id,newDate:idToDate[id],newStaffId:idToStaff[id],newSlot:idToSlot[id]}));
+      const skipped=idsToMove.length-updates.length;
       if(updates.length===0){
         setError("Couldn't move - every target slot is already occupied.");
         return;
